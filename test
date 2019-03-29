@@ -1,0 +1,29 @@
+# The main test script to clean, build, and test a new image
+
+source config
+
+# Clean up old containers and images
+source clean
+
+# Build test image
+docker build --tag=${TEST_IMAGE_NAME} .
+
+# Run a test container
+LOCAL_PORT='8000'
+LOCAL_HUB_VOLUMN="$(pwd)/volumns/jupyterhub"
+LOCAL_HOME_VOLUMN="$(pwd)/volumns/home"
+docker run --runtime=nvidia -d -t \
+  -p $LOCAL_PORT:8000 \
+  -v $LOCAL_HUB_VOLUMN:/opt/jupyterhub \
+  -v $LOCAL_HOME_VOLUMN:/home \
+  --name $TEST_CONTAINER_NAME $TEST_IMAGE_NAME
+
+# Test adding user
+ADMIN_USERNAME="admin"
+ADMIN_PASSWORD="password"
+TEST_SCRIPT_1="useradd -m -p \$(openssl passwd -1 $ADMIN_PASSWORD) $ADMIN_USERNAME"
+docker exec -it $TEST_CONTAINER_NAME bash -c "$TEST_SCRIPT_1"
+
+# Test starting jupyterhub
+TEST_SCRIPT_2="jupyterhub &>> jupyterhub.log"
+docker exec -d $TEST_CONTAINER_NAME bash -c "$TEST_SCRIPT_2"
